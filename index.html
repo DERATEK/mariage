@@ -586,6 +586,7 @@ const CONFIG = {
   supabaseUrl: "https://orhgyizvoudikkrfwdtt.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaGd5aXp2b3VkaWtrcmZ3ZHR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNTM3OTksImV4cCI6MjA5NDYyOTc5OX0.vntfriuZVHSTJysEoCfSV0s1rkjt383WzD9fMN0pHKk",
   table: "mariage_rsvp",
+  sheetUrl: "https://script.google.com/macros/s/AKfycbwAUlyDKiZ51tvDVEgQ3A75pLbbbakIbjkpy5KznXdq7eA0nNmuCVShWNAx_6YyrAk/exec",   // Google Sheets « Mariage Delphine & Dany – Réponses »
   dateMariage: "2027-05-01T15:30:00+02:00",   // heure de la cérémonie
   lieu: "La Bergerie d'Oudun",
   lieuDetail: "6 lieu-dit Oudun, 89440 Joux-la-Ville (Yonne)",
@@ -677,7 +678,7 @@ form.addEventListener("submit", async e => {
 
   btn.disabled = true; btn.textContent = "Envoi…";
   try {
-    const res = await fetch(`${CONFIG.supabaseUrl}/rest/v1/${CONFIG.table}`, {
+    const toSupabase = fetch(`${CONFIG.supabaseUrl}/rest/v1/${CONFIG.table}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -686,8 +687,15 @@ form.addEventListener("submit", async e => {
         "Prefer": "return=minimal"
       },
       body: JSON.stringify(row)
+    }).then(r => { if (!r.ok) throw new Error(r.status); });
+    const toSheet = fetch(CONFIG.sheetUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(row)
     });
-    if (!res.ok) throw new Error(res.status);
+    const results = await Promise.allSettled([toSupabase, toSheet]);
+    if (results.every(r => r.status === "rejected")) throw new Error("envoi");
     showThanks(row);
   } catch (err) {
     msg.className = "msg err";
